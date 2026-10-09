@@ -13,6 +13,53 @@ file_put_contents('order.bpmn', (new BpmnXmlWriter())->write($definitions));
 - What is read but not modelled — a data object, an annotation — is listed by `Definitions::getUnmodelled()`, reported by the validator, and dropped when written back.
 - Our own properties, where BPMN has no word: `<bpmn:extensionElements><wex:property name="role" value="ROLE_AGENT"/></bpmn:extensionElements>` (namespace `https://wexample.com/schema/bpmn`), read and written as `getProperty()` / `setProperty()` on any element. symfony-bpmn reads `role` and `grant` on lanes, `notification` on what sends a message.
 
+## Writing a process by hand
+
+A BPMN file does not need its diagram: lanes, nodes and flows are enough to read, check, walk and run it — or to drive symfony-testing's scenarios. The smallest useful skeleton:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="note_review_definitions" targetNamespace="https://example.com/bpmn">
+  <bpmn:process id="note_review" name="Note review" isExecutable="false">
+    <bpmn:laneSet id="note_review_lanes">
+      <bpmn:lane id="writer" name="Writer">
+        <bpmn:flowNodeRef>start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>write</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="reviewer" name="Reviewer">
+        <bpmn:flowNodeRef>review</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>verdict</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>approved</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>rejected</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="start" name="A member has something to say"/>
+    <bpmn:userTask id="write" name="Write a note"/>
+    <bpmn:userTask id="review" name="Review the note"/>
+    <bpmn:exclusiveGateway id="verdict" name="Approved?" default="flow_rejected"/>
+    <bpmn:endEvent id="approved" name="Approved"/>
+    <bpmn:endEvent id="rejected" name="Rejected"/>
+    <bpmn:sequenceFlow id="flow_start" sourceRef="start" targetRef="write"/>
+    <bpmn:sequenceFlow id="flow_written" sourceRef="write" targetRef="review"/>
+    <bpmn:sequenceFlow id="flow_reviewed" sourceRef="review" targetRef="verdict"/>
+    <bpmn:sequenceFlow id="flow_approved" sourceRef="verdict" targetRef="approved">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">variables['approved']</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_rejected" sourceRef="verdict" targetRef="rejected"/>
+  </bpmn:process>
+</bpmn:definitions>
+```
+
+- Each node belongs to one lane through a `flowNodeRef`; a node's `incoming` / `outgoing` are optional, the flows say it.
+- Ids are what other files name: lanes, tasks and flows are referred to by them — keep them readable and stable.
+- An exclusive gateway names its `default` flow; the other flows carry a condition.
+- `userTask` (or `task`, `manualTask`) is done by a person; `serviceTask`, `sendTask`, `scriptTask` by the application.
+- The file opens in bpmn.io, Camunda Modeler, Signavio: they add the diagram, which is kept when php-bpmn writes the file again.
+
+`BpmnValidator` says what is wrong; `PathFinder` lists the paths it allows.
+
 ## Building in code
 
 ```php
