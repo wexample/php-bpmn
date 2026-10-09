@@ -13,8 +13,21 @@ use Wexample\PhpBpmn\Enum\TimerKind;
  */
 final class Iso8601Helper
 {
+    /**
+     * Whether the timer is an expression — `${variables['visit_at']}` —,
+     * which the engine running the process evaluates, not ISO 8601 itself.
+     */
+    public static function isExpression(string $expression): bool
+    {
+        return (bool) preg_match('/^\$\{.+\}$/s', trim($expression));
+    }
+
     public static function isValid(TimerKind $kind, string $expression): bool
     {
+        if (self::isExpression($expression)) {
+            return true;
+        }
+
         return match ($kind) {
             TimerKind::DURATION => self::parseDuration($expression) !== null,
             TimerKind::DATE => self::parseDate($expression) !== null,

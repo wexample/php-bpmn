@@ -4,11 +4,13 @@ namespace Wexample\PhpBpmn\Tests\Fixtures;
 
 use Wexample\PhpBpmn\Class\Builder\ProcessBuilder;
 use Wexample\PhpBpmn\Class\Element\Definitions;
+use Wexample\PhpBpmn\Enum\TimerKind;
 
 /**
  * The example processes of the package, built in code; `examples/*.bpmn`
  * are written from them (ExamplesTest). Real cases, anonymized: a rental
- * agency, an advisory firm; and an editorial review.
+ * agency — moving a tenant in, a repair, a visit —, an advisory firm; and an
+ * editorial review.
  */
 final class ExampleProcesses
 {
@@ -22,6 +24,7 @@ final class ExampleProcesses
             'maintenance-request' => self::maintenanceRequest(),
             'engagement-letter' => self::engagementLetter(),
             'article-review' => self::articleReview(),
+            'visit-booking' => self::visitBooking(),
         ];
     }
 
@@ -164,6 +167,44 @@ final class ExampleProcesses
             ->connectTo('review')
             ->property('announce', 'notification', 'article.published')
             ->property('remind_editor', 'notification', 'article.review_reminder')
+            ->build();
+    }
+
+    /**
+     * A lead asking to visit a property: qualified, offered slots — reminded
+     * after two days without an answer, given up after a second silence —,
+     * then reminded the day before and the hour before the visit, at times
+     * the platform computes from the slot chosen.
+     */
+    public static function visitBooking(): Definitions
+    {
+        return ProcessBuilder::create('visit_booking', 'Visit booking')
+            ->documentation('A rental agency booking a visit: lead qualified, slot chosen, reminders the day and the hour before.')
+            ->lane('prospect', 'Prospect', ['role' => 'ROLE_PROSPECT'])
+            ->lane('agent', 'Agent', ['role' => 'ROLE_AGENT'])
+            ->lane('platform', 'Platform')
+            ->message('slot_chosen', 'Slot chosen')
+            ->startEvent('lead_received', 'Visit request received', 'prospect')
+            ->userTask('qualify', 'Qualify the lead', 'agent')
+            ->sendTask('offer_slots', 'Offer visit slots', 'platform')
+            ->eventBasedGateway('answer', 'Answer?', 'platform')
+            ->messageCatchEvent('slot_chosen_received', 'Slot chosen', 'slot_chosen', 'platform')
+            ->serviceTask('plan_reminders', 'Plan the reminders', 'platform')
+            ->timerEvent('day_before', 'The day before', "\${variables['remind_day_before']}", 'platform', TimerKind::DATE)
+            ->sendTask('remind_day_before', 'Remind by text message', 'platform')
+            ->timerEvent('hour_before', 'The hour before', "\${variables['remind_hour_before']}", 'platform', TimerKind::DATE)
+            ->sendTask('remind_hour_before', 'Remind by push', 'platform')
+            ->manualTask('visit', 'Visit the property', 'agent')
+            ->endEvent('visited', 'Property visited', 'agent')
+            ->from('answer')
+            ->timerEvent('no_answer', 'Two days without answer', 'P2D', 'platform')
+            ->exclusiveGateway('relaunched', 'Reminded already?', 'platform')
+            ->endEvent('given_up', 'Lead given up', 'platform', condition: "variables['relaunched']")
+            ->from('relaunched', default: true)
+            ->serviceTask('relaunch', 'Relaunch the prospect', 'platform')
+            ->connectTo('offer_slots')
+            ->property('remind_day_before', 'notification', 'visit.reminder_day_before')
+            ->property('remind_hour_before', 'notification', 'visit.reminder_hour_before')
             ->build();
     }
 }

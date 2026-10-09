@@ -64,8 +64,8 @@ Each way out of an exclusive, inclusive or event-based gateway is a path, each b
 
 ## Timers
 
-`Iso8601Helper` reads what a timer says — a duration `P3D`, a date `2026-12-31T09:00:00Z`, a cycle `R3/PT1H` — and `getFireDate()` when it fires.
+`Iso8601Helper` reads what a timer says — a duration `P3D`, a date `2026-12-31T09:00:00Z`, a cycle `R3/PT1H` — and `getFireDate()` when it fires. A timer may also be an expression, `${variables['visit_at']}` (`isExpression()`): the engine running the process evaluates it, the validator lets it be.
 
 ## Examples
 
-`examples/*.bpmn`, written from `tests/Fixtures/ExampleProcesses.php` — real cases, anonymized —: a tenant moving in (lease and deposit in parallel, guarantee reminded every five days, inspection), a maintenance request (a quote above 200 € approved by the landlord, reminded after three days), an engagement letter of an advisory firm (signatures in order, renewal after one or three years by risk), an article review. Rewrite them with `BPMN_WRITE_EXAMPLES=1 vendor/bin/phpunit`.
+`examples/*.bpmn`, written from `tests/Fixtures/ExampleProcesses.php` — real cases, anonymized —: a tenant moving in (lease and deposit in parallel, guarantee reminded every five days, inspection), a maintenance request (a quote above 200 € approved by the landlord, reminded after three days), an engagement letter of an advisory firm (signatures in order, renewal after one or three years by risk), an article review, a visit booking (a silent prospect relaunched once, reminders the day and the hour before the visit, at times computed from the slot). Rewrite them with `BPMN_WRITE_EXAMPLES=1 vendor/bin/phpunit`.

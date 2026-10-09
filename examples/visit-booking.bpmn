@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:wex="https://wexample.com/schema/bpmn" id="visit_booking_definitions" targetNamespace="https://wexample.com/bpmn" exporter="wexample/php-bpmn">
+  <bpmn:message id="slot_chosen" name="Slot chosen"/>
+  <bpmn:process id="visit_booking" name="Visit booking" isExecutable="true">
+    <bpmn:documentation>A rental agency booking a visit: lead qualified, slot chosen, reminders the day and the hour before.</bpmn:documentation>
+    <bpmn:laneSet id="visit_booking_lanes">
+      <bpmn:lane id="prospect" name="Prospect">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_PROSPECT"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>lead_received</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="agent" name="Agent">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_AGENT"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>qualify</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>visit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>visited</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="platform" name="Platform">
+        <bpmn:flowNodeRef>offer_slots</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>answer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>slot_chosen_received</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>plan_reminders</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>day_before</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>remind_day_before</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>hour_before</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>remind_hour_before</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>no_answer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>relaunched</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>given_up</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>relaunch</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="lead_received" name="Visit request received">
+      <bpmn:outgoing>flow_lead_received_qualify</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="qualify" name="Qualify the lead">
+      <bpmn:incoming>flow_lead_received_qualify</bpmn:incoming>
+      <bpmn:outgoing>flow_qualify_offer_slots</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="offer_slots" name="Offer visit slots">
+      <bpmn:incoming>flow_qualify_offer_slots</bpmn:incoming>
+      <bpmn:incoming>flow_relaunch_offer_slots</bpmn:incoming>
+      <bpmn:outgoing>flow_offer_slots_answer</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:eventBasedGateway id="answer" name="Answer?">
+      <bpmn:incoming>flow_offer_slots_answer</bpmn:incoming>
+      <bpmn:outgoing>flow_answer_slot_chosen_received</bpmn:outgoing>
+      <bpmn:outgoing>flow_answer_no_answer</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="slot_chosen_received" name="Slot chosen">
+      <bpmn:incoming>flow_answer_slot_chosen_received</bpmn:incoming>
+      <bpmn:outgoing>flow_slot_chosen_received_plan_reminders</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="slot_chosen"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="plan_reminders" name="Plan the reminders">
+      <bpmn:incoming>flow_slot_chosen_received_plan_reminders</bpmn:incoming>
+      <bpmn:outgoing>flow_plan_reminders_day_before</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="day_before" name="The day before">
+      <bpmn:incoming>flow_plan_reminders_day_before</bpmn:incoming>
+      <bpmn:outgoing>flow_day_before_remind_day_before</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDate xsi:type="bpmn:tFormalExpression">${variables['remind_day_before']}</bpmn:timeDate>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sendTask id="remind_day_before" name="Remind by text message">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="visit.reminder_day_before"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_day_before_remind_day_before</bpmn:incoming>
+      <bpmn:outgoing>flow_remind_day_before_hour_before</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:intermediateCatchEvent id="hour_before" name="The hour before">
+      <bpmn:incoming>flow_remind_day_before_hour_before</bpmn:incoming>
+      <bpmn:outgoing>flow_hour_before_remind_hour_before</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDate xsi:type="bpmn:tFormalExpression">${variables['remind_hour_before']}</bpmn:timeDate>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sendTask id="remind_hour_before" name="Remind by push">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="visit.reminder_hour_before"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_hour_before_remind_hour_before</bpmn:incoming>
+      <bpmn:outgoing>flow_remind_hour_before_visit</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:manualTask id="visit" name="Visit the property">
+      <bpmn:incoming>flow_remind_hour_before_visit</bpmn:incoming>
+      <bpmn:outgoing>flow_visit_visited</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:endEvent id="visited" name="Property visited">
+      <bpmn:incoming>flow_visit_visited</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="no_answer" name="Two days without answer">
+      <bpmn:incoming>flow_answer_no_answer</bpmn:incoming>
+      <bpmn:outgoing>flow_no_answer_relaunched</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P2D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="relaunched" name="Reminded already?" default="flow_relaunched_relaunch">
+      <bpmn:incoming>flow_no_answer_relaunched</bpmn:incoming>
+      <bpmn:outgoing>flow_relaunched_given_up</bpmn:outgoing>
+      <bpmn:outgoing>flow_relaunched_relaunch</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="given_up" name="Lead given up">
+      <bpmn:incoming>flow_relaunched_given_up</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="relaunch" name="Relaunch the prospect">
+      <bpmn:incoming>flow_relaunched_relaunch</bpmn:incoming>
+      <bpmn:outgoing>flow_relaunch_offer_slots</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="flow_lead_received_qualify" sourceRef="lead_received" targetRef="qualify"/>
+    <bpmn:sequenceFlow id="flow_qualify_offer_slots" sourceRef="qualify" targetRef="offer_slots"/>
+    <bpmn:sequenceFlow id="flow_offer_slots_answer" sourceRef="offer_slots" targetRef="answer"/>
+    <bpmn:sequenceFlow id="flow_answer_slot_chosen_received" sourceRef="answer" targetRef="slot_chosen_received"/>
+    <bpmn:sequenceFlow id="flow_slot_chosen_received_plan_reminders" sourceRef="slot_chosen_received" targetRef="plan_reminders"/>
+    <bpmn:sequenceFlow id="flow_plan_reminders_day_before" sourceRef="plan_reminders" targetRef="day_before"/>
+    <bpmn:sequenceFlow id="flow_day_before_remind_day_before" sourceRef="day_before" targetRef="remind_day_before"/>
+    <bpmn:sequenceFlow id="flow_remind_day_before_hour_before" sourceRef="remind_day_before" targetRef="hour_before"/>
+    <bpmn:sequenceFlow id="flow_hour_before_remind_hour_before" sourceRef="hour_before" targetRef="remind_hour_before"/>
+    <bpmn:sequenceFlow id="flow_remind_hour_before_visit" sourceRef="remind_hour_before" targetRef="visit"/>
+    <bpmn:sequenceFlow id="flow_visit_visited" sourceRef="visit" targetRef="visited"/>
+    <bpmn:sequenceFlow id="flow_answer_no_answer" sourceRef="answer" targetRef="no_answer"/>
+    <bpmn:sequenceFlow id="flow_no_answer_relaunched" sourceRef="no_answer" targetRef="relaunched"/>
+    <bpmn:sequenceFlow id="flow_relaunched_given_up" sourceRef="relaunched" targetRef="given_up">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">variables['relaunched']</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_relaunched_relaunch" sourceRef="relaunched" targetRef="relaunch"/>
+    <bpmn:sequenceFlow id="flow_relaunch_offer_slots" sourceRef="relaunch" targetRef="offer_slots"/>
+  </bpmn:process>
+</bpmn:definitions>

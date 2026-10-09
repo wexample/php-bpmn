@@ -24,6 +24,9 @@ use Wexample\PhpBpmn\Helper\Iso8601Helper;
  * BPMN beyond what is run here (the executable subset), or where it likely
  * says something else than meant.
  *
+ * A timer may be an expression, `${variables['visit_at']}`: the engine
+ * evaluates it.
+ *
  * The executable subset: tasks of every type, call activities, sub-processes;
  * exclusive, parallel and event-based gateways; start and end events, plain,
  * message, timer, signal or terminate; intermediate message, timer and signal

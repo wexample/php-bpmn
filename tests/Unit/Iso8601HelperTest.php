@@ -20,6 +20,10 @@ class Iso8601HelperTest extends TestCase
         $this->assertTrue(Iso8601Helper::isValid(TimerKind::CYCLE, 'R3/PT1H'));
         $this->assertTrue(Iso8601Helper::isValid(TimerKind::CYCLE, 'R/2026-01-01T00:00:00Z/P1M'));
         $this->assertFalse(Iso8601Helper::isValid(TimerKind::CYCLE, 'every hour'));
+        // An expression is the engine's to evaluate.
+        $this->assertTrue(Iso8601Helper::isValid(TimerKind::DATE, "\${variables['visit_at']}"));
+        $this->assertTrue(Iso8601Helper::isExpression(" \${variables['visit_at']} "));
+        $this->assertFalse(Iso8601Helper::isExpression('P1D'));
     }
 
     public function testATimerSaysWhenItFires(): void
