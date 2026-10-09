@@ -14,11 +14,13 @@ class Path
      * @param list<PathStep>                       $steps
      * @param list<array{string, string, string}> $choices gateway or activity, flow taken, what was chosen: its condition, `default`, `completed`, a boundary event
      * @param bool                                 $complete false where the walk stopped on a loop or a bound
+     * @param string|null                          $label    what sets it apart, given by whoever chose it among others
      */
     public function __construct(
         private readonly array $steps,
         private readonly array $choices,
         private readonly bool $complete,
+        private readonly ?string $label = null,
     ) {
     }
 
@@ -82,10 +84,14 @@ class Path
     }
 
     /**
-     * A label for the path: the choices it made.
+     * A label for the path: the one it was given, or the choices it made.
      */
     public function describe(): string
     {
+        if ($this->label !== null) {
+            return $this->label;
+        }
+
         if (! $this->choices) {
             return 'straight';
         }

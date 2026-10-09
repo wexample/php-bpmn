@@ -82,4 +82,71 @@ class PathFinderTest extends TestCase
         // `slow` was reached first, then `abort` stopped the rest.
         $this->assertSame(['start', 'split', 'slow', 'abort'], $path->getNodeIds());
     }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function examples(): iterable
+    {
+        foreach (glob(__DIR__ . '/../../examples/*.bpmn') as $file) {
+            yield basename($file, '.bpmn') => [$file];
+        }
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('examples')]
+    public function testCoveringPathsTakeEveryFlowOfEachExample(string $file): void
+    {
+        foreach ((new BpmnXmlReader())->readFile($file)->getProcesses() as $process) {
+            $flow = $process->getFlow();
+            $paths = (new PathFinder())->cover($process);
+            $taken = [];
+
+            foreach ($paths as $path) {
+                $this->assertTrue($path->isComplete(), $path->describe());
+
+                foreach ($path->getSteps() as $step) {
+                    $taken[$step->flowId ?? ''] = true;
+                    // A join keeps the last way in: the others came too.
+                    if ($step->element === 'parallelGateway') {
+                        foreach ($flow->getIncoming($step->nodeId) as $in) {
+                            $taken[$in->getId()] = true;
+                        }
+                    }
+                }
+                foreach ($path->getChoices() as $choice) {
+                    $taken[$choice[1]] = true;
+                }
+            }
+
+            $flows = array_map(static fn ($sequenceFlow) => $sequenceFlow->getId(), $flow->getFlows());
+            $this->assertSame([], array_values(array_diff($flows, array_keys($taken))), $process->getId());
+
+            $labels = array_map(static fn (Path $path) => $path->describe(), $paths);
+            $this->assertSame($labels, array_values(array_unique($labels)));
+        }
+    }
+
+    public function testCoveringPathsGoRoundEachLoopOnceWithoutEveryCombination(): void
+    {
+        $process = (new BpmnXmlReader())->readFile(__DIR__ . '/../../examples/public-expenditure.bpmn')->getProcess('public_expenditure');
+
+        $all = (new PathFinder())->find($process);
+        $covering = (new PathFinder())->cover($process);
+
+        $this->assertGreaterThanOrEqual(40, count($all));
+        $this->assertLessThanOrEqual(12, count($covering));
+
+        // The invoice disputed, then sent again: the loop is in a path.
+        $looping = array_filter($covering, static fn (Path $path) => count(array_keys($path->getNodeIds(), 'match_invoice', true)) === 2);
+        $this->assertNotEmpty($looping);
+    }
+
+    public function testCoveringPathsAreNamedByWhatTheyChoseFirst(): void
+    {
+        $process = ExampleProcesses::articleReview()->getProcess('article_review');
+        $labels = array_map(static fn (Path $path) => $path->describe(), (new PathFinder())->cover($process));
+
+        $this->assertSame(['main: published', 'review → review_late ↺', 'verdict → default ↺'], $labels);
+    }
 }
+

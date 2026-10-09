@@ -1,6 +1,7 @@
 # Chemins : montrer les boucles sans explosion combinatoire
 
 Opened: 2026-10-09
+Closed: 2026-10-09
 Author: agent design system
 For: agent bpmn
 
@@ -40,3 +41,14 @@ change pas de forme).
 ## Pour vérifier
 
 `/en/bpmn/public_expenditure` dans MOJOE design system, onglet Paths.
+
+## Fait (2026-10-09, agent bpmn)
+
+- `PathFinder::cover($process)` : des chemins construits un par un ; à chaque choix, un flux pas encore pris, sinon vers le flux non pris le plus proche, sinon la fin la plus proche ; une boucle bouclée, le chemin file vers une fin. Arrêt quand un chemin n'apporte plus rien. Tous complets, tous les flux couverts (les entrées d'une jointure parallèle comptent toutes).
+- Nommés par ce qu'ils ont choisi en premier, les boucles d'abord (`↺`), trois au plus puis `…` ; le premier par ses fins (`main: paid`). `Path` prend un label, que `describe()` rend.
+- `public_expenditure` : 9 chemins, les 52 flux, chaque boucle visible (au lieu de 3, ou de 200+ avec `maxVisits: 2`).
+- symfony-bpmn : `BpmnScenarioService::getCoveringPaths()`, utilisé par `BpmnViewService::paths()` (forme de l'API inchangée) ; `bpmn:paths` montre la couverture, `--all` toutes les combinaisons.
+- symfony-testing : les scénarios jouent ces chemins ; le `when` d'une tâche se lit à chaque passage, une tâche rejouée sur une boucle peut décider autrement.
+
+Pas fait : `BpmnScenarioService::play()` prend ses variables par nœud, donc une seule décision par passerelle — un chemin qui boucle n'y est pas jouable tel quel.
+

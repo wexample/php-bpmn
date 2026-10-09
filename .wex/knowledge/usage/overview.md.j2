@@ -109,6 +109,16 @@ foreach ((new PathFinder(maxVisits: 1))->find($process) as $path) {
 
 Each way out of an exclusive, inclusive or event-based gateway is a path, each boundary event of an activity too; a parallel split is walked whole in one path, joined before going on; a loop is gone round `maxVisits` times per node, then the path stops. A path is a story told lane by lane: what a multi-actor test plays.
 
+`find()` gives every combination: on a large process with loops, too many to read — the ministry example has more than 200. `cover()` gives a few paths that together take every flow, each loop gone round once, each path complete:
+
+```php
+foreach ((new PathFinder())->cover($process) as $path) {
+    $path->describe();   // "main: paid", then what each one chose first: "matched → default ↺"
+}
+```
+
+Each is walked choosing, at a fork, a way not taken yet, else the way towards the nearest flow not taken yet, else the shortest way to an end; once it has gone round a loop, it heads for an end. Paths are drawn until a new one takes nothing new. `↺` marks a choice leading back. The first is labelled by its ends, the others by the choices they made first. This is what to show a person, and what a test should play.
+
 ## Timers
 
 `Iso8601Helper` reads what a timer says — a duration `P3D`, a date `2026-12-31T09:00:00Z`, a cycle `R3/PT1H` — and `getFireDate()` when it fires. A timer may also be an expression, `${variables['visit_at']}` (`isExpression()`): the engine running the process evaluates it, the validator lets it be.
