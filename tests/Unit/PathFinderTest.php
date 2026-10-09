@@ -26,7 +26,7 @@ class PathFinderTest extends TestCase
 
         $below = array_values(array_filter($complete, static fn (Path $path) => in_array('agent_decides', $path->getNodeIds(), true)))[0];
         $this->assertSame(['tenant', 'agent', 'platform'], $below->getLanes());
-        $this->assertSame([['quote_amount', 'flow_quote_amount_agent_decides', null]], $below->getChoices());
+        $this->assertSame([['quote_amount', 'flow_quote_amount_agent_decides', 'default']], $below->getChoices());
     }
 
     public function testAParallelSplitIsJoinedInOnePath(): void
@@ -63,7 +63,7 @@ class PathFinderTest extends TestCase
         $paths = (new PathFinder())->find($process);
 
         $this->assertSame(['End_shipped', 'End_cancelled'], array_map(static fn (Path $path) => $path->getEnds()[0], $paths));
-        $this->assertSame('Gateway_paid → Flow_4', $paths[1]->describe());
+        $this->assertSame('Gateway_paid → Catch_timeout', $paths[1]->describe());
     }
 
     public function testATerminateEndStopsEveryToken(): void

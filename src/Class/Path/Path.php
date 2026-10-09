@@ -12,7 +12,7 @@ class Path
 {
     /**
      * @param list<PathStep>                       $steps
-     * @param list<array{string, string, ?string}> $choices gateway or activity, flow taken, its condition
+     * @param list<array{string, string, string}> $choices gateway or activity, flow taken, what was chosen: its condition, `default`, `completed`, a boundary event
      * @param bool                                 $complete false where the walk stopped on a loop or a bound
      */
     public function __construct(
@@ -49,7 +49,7 @@ class Path
     }
 
     /**
-     * @return list<array{string, string, ?string}>
+     * @return list<array{string, string, string}>
      */
     public function getChoices(): array
     {
@@ -91,7 +91,7 @@ class Path
         }
 
         return implode(', ', array_map(
-            static fn (array $choice) => $choice[0] . ' → ' . ($choice[2] ?? $choice[1]),
+            static fn (array $choice) => $choice[0] . ' → ' . $choice[2],
             $this->choices
         ));
     }

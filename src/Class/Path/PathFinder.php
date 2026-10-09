@@ -52,7 +52,7 @@ class PathFinder
     /**
      * @param list<array{string, ?SequenceFlow}>   $tokens  where tokens stand, and the flow that brought each
      * @param list<PathStep>                       $steps
-     * @param list<array{string, string, ?string}> $choices
+     * @param list<array{string, string, string}> $choices
      * @param array<string, int>                   $visits
      * @param array<string, int>                   $arrivals tokens arrived at each parallel join
      * @param list<Path>                           $paths
@@ -106,12 +106,12 @@ class PathFinder
             $alternatives = $this->getAlternatives($process, $node, $outgoing);
 
             if ($alternatives !== null) {
-                foreach ($alternatives as [$choiceNode, $target, $choiceFlow, $extraSteps]) {
+                foreach ($alternatives as [$choiceNode, $target, $choiceFlow, $extraSteps, $label]) {
                     $this->walk(
                         $process,
                         [...$tokens, [$target, $choiceFlow]],
                         [...$steps, ...$extraSteps],
-                        [...$choices, [$choiceNode, $choiceFlow?->getId() ?? $target, $choiceFlow?->getCondition() ?? ($choiceFlow === null ? $target : null)]],
+                        [...$choices, [$choiceNode, $choiceFlow?->getId() ?? $target, $label]],
                         $visits,
                         $arrivals,
                         $paths
@@ -135,14 +135,20 @@ class PathFinder
      *
      * @param list<SequenceFlow> $outgoing
      *
-     * @return list<array{string, string, ?SequenceFlow, list<PathStep>}>|null
+     * @return list<array{string, string, ?SequenceFlow, list<PathStep>, string}>|null node, target, flow, steps added, what the choice was
      */
     private function getAlternatives(Process $process, AbstractFlowNode $node, array $outgoing): ?array
     {
         $flow = $process->getFlow();
 
         if ($node instanceof Gateway && in_array($node->getType(), [GatewayType::EXCLUSIVE, GatewayType::INCLUSIVE, GatewayType::EVENT_BASED, GatewayType::COMPLEX], true) && count($outgoing) > 1) {
-            return array_map(static fn (SequenceFlow $flowOut) => [$node->getId(), $flowOut->getTarget(), $flowOut, []], $outgoing);
+            return array_map(static fn (SequenceFlow $flowOut) => [
+                $node->getId(),
+                $flowOut->getTarget(),
+                $flowOut,
+                [],
+                $flowOut->getCondition() ?? ($flowOut->getId() === $node->getDefaultFlow() ? 'default' : $flowOut->getTarget()),
+            ], $outgoing);
         }
 
         $boundaries = array_filter($flow->getBoundaryEvents($node->getId()), static fn (Event $event) => $event->isCancelActivity());
@@ -155,12 +161,12 @@ class PathFinder
         $alternatives = [];
 
         foreach ($outgoing as $flowOut) {
-            $alternatives[] = [$node->getId(), $flowOut->getTarget(), $flowOut, []];
+            $alternatives[] = [$node->getId(), $flowOut->getTarget(), $flowOut, [], 'completed'];
         }
 
         foreach ($boundaries as $boundary) {
             foreach ($flow->getOutgoing($boundary->getId()) as $flowOut) {
-                $alternatives[] = [$node->getId(), $flowOut->getTarget(), $flowOut, [$this->step($process, $boundary, null)]];
+                $alternatives[] = [$node->getId(), $flowOut->getTarget(), $flowOut, [$this->step($process, $boundary, null)], $boundary->getId()];
             }
         }
 
