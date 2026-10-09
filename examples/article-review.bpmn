@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:wex="https://wexample.com/schema/bpmn" id="article_review_definitions" targetNamespace="https://wexample.com/bpmn" exporter="wexample/php-bpmn">
+  <bpmn:message id="article_published" name="Article published"/>
+  <bpmn:process id="article_review" name="Article review" isExecutable="true">
+    <bpmn:documentation>An editorial team reviewing an article before it is published.</bpmn:documentation>
+    <bpmn:laneSet id="article_review_lanes">
+      <bpmn:lane id="author" name="Author">
+        <bpmn:extensionElements>
+          <wex:property name="grant" value="contributor"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>submitted</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>revise</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="editor" name="Editor">
+        <bpmn:extensionElements>
+          <wex:property name="grant" value="administrator"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>review</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>verdict</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="platform" name="Platform">
+        <bpmn:flowNodeRef>announce</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>published</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>remind_editor</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="submitted" name="Article submitted">
+      <bpmn:outgoing>flow_submitted_review</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="review" name="Review the article">
+      <bpmn:incoming>flow_submitted_review</bpmn:incoming>
+      <bpmn:incoming>flow_revise_review</bpmn:incoming>
+      <bpmn:incoming>flow_remind_editor_review</bpmn:incoming>
+      <bpmn:outgoing>flow_review_verdict</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="verdict" name="Approved?" default="flow_verdict_revise">
+      <bpmn:incoming>flow_review_verdict</bpmn:incoming>
+      <bpmn:outgoing>flow_verdict_announce</bpmn:outgoing>
+      <bpmn:outgoing>flow_verdict_revise</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateThrowEvent id="announce" name="Announce the article">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="article.published"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_verdict_announce</bpmn:incoming>
+      <bpmn:outgoing>flow_announce_published</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="article_published"/>
+    </bpmn:intermediateThrowEvent>
+    <bpmn:endEvent id="published" name="Published">
+      <bpmn:incoming>flow_announce_published</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="revise" name="Revise the article">
+      <bpmn:incoming>flow_verdict_revise</bpmn:incoming>
+      <bpmn:outgoing>flow_revise_review</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:boundaryEvent id="review_late" name="Two days without review" attachedToRef="review">
+      <bpmn:outgoing>flow_review_late_remind_editor</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P2D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sendTask id="remind_editor" name="Remind the editor">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="article.review_reminder"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_review_late_remind_editor</bpmn:incoming>
+      <bpmn:outgoing>flow_remind_editor_review</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:sequenceFlow id="flow_submitted_review" sourceRef="submitted" targetRef="review"/>
+    <bpmn:sequenceFlow id="flow_review_verdict" sourceRef="review" targetRef="verdict"/>
+    <bpmn:sequenceFlow id="flow_verdict_announce" sourceRef="verdict" targetRef="announce">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">variables['approved']</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_announce_published" sourceRef="announce" targetRef="published"/>
+    <bpmn:sequenceFlow id="flow_verdict_revise" sourceRef="verdict" targetRef="revise"/>
+    <bpmn:sequenceFlow id="flow_revise_review" sourceRef="revise" targetRef="review"/>
+    <bpmn:sequenceFlow id="flow_review_late_remind_editor" sourceRef="review_late" targetRef="remind_editor"/>
+    <bpmn:sequenceFlow id="flow_remind_editor_review" sourceRef="remind_editor" targetRef="review"/>
+  </bpmn:process>
+</bpmn:definitions>

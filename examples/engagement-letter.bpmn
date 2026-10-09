@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:wex="https://wexample.com/schema/bpmn" id="engagement_letter_definitions" targetNamespace="https://wexample.com/bpmn" exporter="wexample/php-bpmn">
+  <bpmn:message id="renewal_due" name="Renewal due"/>
+  <bpmn:process id="engagement_letter" name="Engagement letter" isExecutable="true">
+    <bpmn:documentation>An advisory firm writing an engagement letter for a client: composition, ordered signatures, archive, renewal by risk.</bpmn:documentation>
+    <bpmn:laneSet id="engagement_letter_lanes">
+      <bpmn:lane id="manager" name="Manager">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_MANAGER"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>client_identified</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>compose</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>review</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>manager_signs</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>renew</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>renewed</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="partner" name="Partner">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_PARTNER"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>partner_signs</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="client" name="Client">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_CLIENT"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>client_signs</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="platform" name="Platform">
+        <bpmn:flowNodeRef>render_pdf</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>archive</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>risk</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>one_year</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>renewal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>remind_renewal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>three_years</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>remind_client</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="client_identified" name="Client identified">
+      <bpmn:outgoing>flow_client_identified_compose</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="compose" name="Compose the letter section by section">
+      <bpmn:incoming>flow_client_identified_compose</bpmn:incoming>
+      <bpmn:outgoing>flow_compose_review</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="review" name="Review the whole letter">
+      <bpmn:incoming>flow_compose_review</bpmn:incoming>
+      <bpmn:outgoing>flow_review_render_pdf</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="render_pdf" name="Render the final document">
+      <bpmn:incoming>flow_review_render_pdf</bpmn:incoming>
+      <bpmn:outgoing>flow_render_pdf_manager_signs</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="manager_signs" name="Sign as manager">
+      <bpmn:incoming>flow_render_pdf_manager_signs</bpmn:incoming>
+      <bpmn:outgoing>flow_manager_signs_partner_signs</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="partner_signs" name="Sign as partner">
+      <bpmn:incoming>flow_manager_signs_partner_signs</bpmn:incoming>
+      <bpmn:outgoing>flow_partner_signs_client_signs</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="client_signs" name="Sign as client">
+      <bpmn:incoming>flow_partner_signs_client_signs</bpmn:incoming>
+      <bpmn:incoming>flow_remind_client_client_signs</bpmn:incoming>
+      <bpmn:outgoing>flow_client_signs_archive</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="archive" name="Archive the signed letter">
+      <bpmn:incoming>flow_client_signs_archive</bpmn:incoming>
+      <bpmn:outgoing>flow_archive_risk</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="risk" name="Risk level?" default="flow_risk_three_years">
+      <bpmn:incoming>flow_archive_risk</bpmn:incoming>
+      <bpmn:outgoing>flow_risk_one_year</bpmn:outgoing>
+      <bpmn:outgoing>flow_risk_three_years</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateCatchEvent id="one_year" name="One year">
+      <bpmn:incoming>flow_risk_one_year</bpmn:incoming>
+      <bpmn:outgoing>flow_one_year_renewal</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P1Y</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="renewal">
+      <bpmn:incoming>flow_one_year_renewal</bpmn:incoming>
+      <bpmn:incoming>flow_three_years_renewal</bpmn:incoming>
+      <bpmn:outgoing>flow_renewal_remind_renewal</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="remind_renewal" name="Remind the manager and the partner" messageRef="renewal_due">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="engagement.renewal_due"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_renewal_remind_renewal</bpmn:incoming>
+      <bpmn:outgoing>flow_remind_renewal_renew</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:userTask id="renew" name="Validate the renewed letter">
+      <bpmn:incoming>flow_remind_renewal_renew</bpmn:incoming>
+      <bpmn:outgoing>flow_renew_renewed</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="renewed" name="Letter renewed">
+      <bpmn:incoming>flow_renew_renewed</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="three_years" name="Three years">
+      <bpmn:incoming>flow_risk_three_years</bpmn:incoming>
+      <bpmn:outgoing>flow_three_years_renewal</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P3Y</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:boundaryEvent id="client_silent" name="A week without signature" attachedToRef="client_signs">
+      <bpmn:outgoing>flow_client_silent_remind_client</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P7D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sendTask id="remind_client" name="Remind the client to sign">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="engagement.signature_reminder"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_client_silent_remind_client</bpmn:incoming>
+      <bpmn:outgoing>flow_remind_client_client_signs</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:sequenceFlow id="flow_client_identified_compose" sourceRef="client_identified" targetRef="compose"/>
+    <bpmn:sequenceFlow id="flow_compose_review" sourceRef="compose" targetRef="review"/>
+    <bpmn:sequenceFlow id="flow_review_render_pdf" sourceRef="review" targetRef="render_pdf"/>
+    <bpmn:sequenceFlow id="flow_render_pdf_manager_signs" sourceRef="render_pdf" targetRef="manager_signs"/>
+    <bpmn:sequenceFlow id="flow_manager_signs_partner_signs" sourceRef="manager_signs" targetRef="partner_signs"/>
+    <bpmn:sequenceFlow id="flow_partner_signs_client_signs" sourceRef="partner_signs" targetRef="client_signs"/>
+    <bpmn:sequenceFlow id="flow_client_signs_archive" sourceRef="client_signs" targetRef="archive"/>
+    <bpmn:sequenceFlow id="flow_archive_risk" sourceRef="archive" targetRef="risk"/>
+    <bpmn:sequenceFlow id="flow_risk_one_year" sourceRef="risk" targetRef="one_year">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">variables['risk'] == 'high'</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_one_year_renewal" sourceRef="one_year" targetRef="renewal"/>
+    <bpmn:sequenceFlow id="flow_renewal_remind_renewal" sourceRef="renewal" targetRef="remind_renewal"/>
+    <bpmn:sequenceFlow id="flow_remind_renewal_renew" sourceRef="remind_renewal" targetRef="renew"/>
+    <bpmn:sequenceFlow id="flow_renew_renewed" sourceRef="renew" targetRef="renewed"/>
+    <bpmn:sequenceFlow id="flow_risk_three_years" sourceRef="risk" targetRef="three_years"/>
+    <bpmn:sequenceFlow id="flow_three_years_renewal" sourceRef="three_years" targetRef="renewal"/>
+    <bpmn:sequenceFlow id="flow_client_silent_remind_client" sourceRef="client_silent" targetRef="remind_client"/>
+    <bpmn:sequenceFlow id="flow_remind_client_client_signs" sourceRef="remind_client" targetRef="client_signs"/>
+  </bpmn:process>
+</bpmn:definitions>

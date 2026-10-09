@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:wex="https://wexample.com/schema/bpmn" id="maintenance_request_definitions" targetNamespace="https://wexample.com/bpmn" exporter="wexample/php-bpmn">
+  <bpmn:message id="works_done" name="Works done"/>
+  <bpmn:process id="maintenance_request" name="Maintenance request" isExecutable="true">
+    <bpmn:documentation>A rental agency handling a repair: quote, approval by the landlord above a threshold, works.</bpmn:documentation>
+    <bpmn:laneSet id="maintenance_request_lanes">
+      <bpmn:lane id="tenant" name="Tenant">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_TENANT"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>repair_reported</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="agent" name="Agent">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_AGENT"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>get_quote</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>quote_amount</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>order_works</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>works_done_received</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>repaired</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>agent_decides</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="landlord" name="Landlord">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_LANDLORD"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>landlord_decides</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>landlord_answer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>refused</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="platform" name="Platform">
+        <bpmn:flowNodeRef>ask_landlord</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>tell_landlord</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>remind_landlord</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="repair_reported" name="Repair reported">
+      <bpmn:outgoing>flow_repair_reported_get_quote</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="get_quote" name="Get a quote">
+      <bpmn:incoming>flow_repair_reported_get_quote</bpmn:incoming>
+      <bpmn:outgoing>flow_get_quote_quote_amount</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="quote_amount" name="Quote above 200 €?" default="flow_quote_amount_agent_decides">
+      <bpmn:incoming>flow_get_quote_quote_amount</bpmn:incoming>
+      <bpmn:outgoing>flow_quote_amount_ask_landlord</bpmn:outgoing>
+      <bpmn:outgoing>flow_quote_amount_agent_decides</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="ask_landlord" name="Ask the landlord to approve">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="rental.quote_approval"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_quote_amount_ask_landlord</bpmn:incoming>
+      <bpmn:outgoing>flow_ask_landlord_landlord_decides</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:userTask id="landlord_decides" name="Approve or refuse the quote">
+      <bpmn:incoming>flow_ask_landlord_landlord_decides</bpmn:incoming>
+      <bpmn:incoming>flow_remind_landlord_landlord_decides</bpmn:incoming>
+      <bpmn:outgoing>flow_landlord_decides_landlord_answer</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="landlord_answer" name="Approved?" default="flow_landlord_answer_order_works">
+      <bpmn:incoming>flow_landlord_decides_landlord_answer</bpmn:incoming>
+      <bpmn:outgoing>flow_landlord_answer_refused</bpmn:outgoing>
+      <bpmn:outgoing>flow_landlord_answer_order_works</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="refused" name="Repair refused">
+      <bpmn:incoming>flow_landlord_answer_refused</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="order_works" name="Order the works">
+      <bpmn:incoming>flow_landlord_answer_order_works</bpmn:incoming>
+      <bpmn:incoming>flow_tell_landlord_order_works</bpmn:incoming>
+      <bpmn:outgoing>flow_order_works_works_done_received</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:intermediateCatchEvent id="works_done_received" name="Works done">
+      <bpmn:incoming>flow_order_works_works_done_received</bpmn:incoming>
+      <bpmn:outgoing>flow_works_done_received_repaired</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="works_done"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="repaired" name="Repaired">
+      <bpmn:incoming>flow_works_done_received_repaired</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="agent_decides" name="Decide on the quote">
+      <bpmn:incoming>flow_quote_amount_agent_decides</bpmn:incoming>
+      <bpmn:outgoing>flow_agent_decides_tell_landlord</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="tell_landlord" name="Tell the landlord">
+      <bpmn:incoming>flow_agent_decides_tell_landlord</bpmn:incoming>
+      <bpmn:outgoing>flow_tell_landlord_order_works</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:boundaryEvent id="landlord_silent" name="Three days without answer" attachedToRef="landlord_decides">
+      <bpmn:outgoing>flow_landlord_silent_remind_landlord</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P3D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sendTask id="remind_landlord" name="Remind the landlord">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="rental.quote_approval_reminder"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_landlord_silent_remind_landlord</bpmn:incoming>
+      <bpmn:outgoing>flow_remind_landlord_landlord_decides</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:sequenceFlow id="flow_repair_reported_get_quote" sourceRef="repair_reported" targetRef="get_quote"/>
+    <bpmn:sequenceFlow id="flow_get_quote_quote_amount" sourceRef="get_quote" targetRef="quote_amount"/>
+    <bpmn:sequenceFlow id="flow_quote_amount_ask_landlord" sourceRef="quote_amount" targetRef="ask_landlord">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">variables['quote'] &gt; 200</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_ask_landlord_landlord_decides" sourceRef="ask_landlord" targetRef="landlord_decides"/>
+    <bpmn:sequenceFlow id="flow_landlord_decides_landlord_answer" sourceRef="landlord_decides" targetRef="landlord_answer"/>
+    <bpmn:sequenceFlow id="flow_landlord_answer_refused" sourceRef="landlord_answer" targetRef="refused">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">not variables['approved']</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_landlord_answer_order_works" sourceRef="landlord_answer" targetRef="order_works"/>
+    <bpmn:sequenceFlow id="flow_order_works_works_done_received" sourceRef="order_works" targetRef="works_done_received"/>
+    <bpmn:sequenceFlow id="flow_works_done_received_repaired" sourceRef="works_done_received" targetRef="repaired"/>
+    <bpmn:sequenceFlow id="flow_quote_amount_agent_decides" sourceRef="quote_amount" targetRef="agent_decides"/>
+    <bpmn:sequenceFlow id="flow_agent_decides_tell_landlord" sourceRef="agent_decides" targetRef="tell_landlord"/>
+    <bpmn:sequenceFlow id="flow_tell_landlord_order_works" sourceRef="tell_landlord" targetRef="order_works"/>
+    <bpmn:sequenceFlow id="flow_landlord_silent_remind_landlord" sourceRef="landlord_silent" targetRef="remind_landlord"/>
+    <bpmn:sequenceFlow id="flow_remind_landlord_landlord_decides" sourceRef="remind_landlord" targetRef="landlord_decides"/>
+  </bpmn:process>
+</bpmn:definitions>

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:wex="https://wexample.com/schema/bpmn" id="tenant_move_in_definitions" targetNamespace="https://wexample.com/bpmn" exporter="wexample/php-bpmn">
+  <bpmn:message id="lease_signature_requested" name="Lease signature requested"/>
+  <bpmn:message id="lease_signed" name="Lease signed"/>
+  <bpmn:message id="deposit_paid" name="Holding deposit paid"/>
+  <bpmn:process id="tenant_move_in" name="Tenant move-in" isExecutable="true">
+    <bpmn:documentation>A rental agency moving a new tenant in: lease, holding deposit, rental guarantee, check-in inspection, keys.</bpmn:documentation>
+    <bpmn:laneSet id="tenant_move_in_lanes">
+      <bpmn:lane id="agent" name="Agent">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_AGENT"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>applicant_accepted</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>register_guarantee</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>schedule_inspection</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>hand_over_keys</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>moved_in</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="tenant" name="Tenant">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_TENANT"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>pay_deposit</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="inspector" name="Inspector">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_INSPECTOR"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>inspect</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="platform" name="Platform">
+        <bpmn:flowNodeRef>generate_lease</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>lease_and_deposit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>send_lease</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>lease_signed_by_all</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>lease_and_deposit_done</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>call_for_funds</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>remind_guarantee</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="applicant_accepted" name="Applicant accepted by the landlord">
+      <bpmn:outgoing>flow_applicant_accepted_generate_lease</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="generate_lease" name="Generate the lease">
+      <bpmn:incoming>flow_applicant_accepted_generate_lease</bpmn:incoming>
+      <bpmn:outgoing>flow_generate_lease_lease_and_deposit</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="lease_and_deposit">
+      <bpmn:incoming>flow_generate_lease_lease_and_deposit</bpmn:incoming>
+      <bpmn:outgoing>flow_lease_and_deposit_send_lease</bpmn:outgoing>
+      <bpmn:outgoing>flow_lease_and_deposit_pay_deposit</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:sendTask id="send_lease" name="Send the lease for signature" messageRef="lease_signature_requested">
+      <bpmn:incoming>flow_lease_and_deposit_send_lease</bpmn:incoming>
+      <bpmn:outgoing>flow_send_lease_lease_signed_by_all</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:intermediateCatchEvent id="lease_signed_by_all" name="Lease signed by all parties">
+      <bpmn:incoming>flow_send_lease_lease_signed_by_all</bpmn:incoming>
+      <bpmn:outgoing>flow_lease_signed_by_all_lease_and_deposit_done</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="lease_signed"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:parallelGateway id="lease_and_deposit_done">
+      <bpmn:incoming>flow_lease_signed_by_all_lease_and_deposit_done</bpmn:incoming>
+      <bpmn:incoming>flow_pay_deposit_lease_and_deposit_done</bpmn:incoming>
+      <bpmn:outgoing>flow_lease_and_deposit_done_call_for_funds</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:userTask id="pay_deposit" name="Pay the holding deposit">
+      <bpmn:incoming>flow_lease_and_deposit_pay_deposit</bpmn:incoming>
+      <bpmn:outgoing>flow_pay_deposit_lease_and_deposit_done</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="call_for_funds" name="Send the call for funds">
+      <bpmn:incoming>flow_lease_and_deposit_done_call_for_funds</bpmn:incoming>
+      <bpmn:outgoing>flow_call_for_funds_register_guarantee</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="register_guarantee" name="Register the rental guarantee">
+      <bpmn:incoming>flow_call_for_funds_register_guarantee</bpmn:incoming>
+      <bpmn:incoming>flow_remind_guarantee_register_guarantee</bpmn:incoming>
+      <bpmn:outgoing>flow_register_guarantee_schedule_inspection</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="schedule_inspection" name="Schedule the check-in inspection">
+      <bpmn:incoming>flow_register_guarantee_schedule_inspection</bpmn:incoming>
+      <bpmn:outgoing>flow_schedule_inspection_inspect</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="inspect" name="Inspect and upload the report">
+      <bpmn:incoming>flow_schedule_inspection_inspect</bpmn:incoming>
+      <bpmn:outgoing>flow_inspect_hand_over_keys</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:manualTask id="hand_over_keys" name="Hand over the keys">
+      <bpmn:incoming>flow_inspect_hand_over_keys</bpmn:incoming>
+      <bpmn:outgoing>flow_hand_over_keys_moved_in</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:endEvent id="moved_in" name="Tenant moved in">
+      <bpmn:incoming>flow_hand_over_keys_moved_in</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:boundaryEvent id="guarantee_overdue" name="Five days without guarantee" attachedToRef="register_guarantee">
+      <bpmn:outgoing>flow_guarantee_overdue_remind_guarantee</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P5D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sendTask id="remind_guarantee" name="Remind the tenant of the guarantee">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="rental.guarantee_reminder"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_guarantee_overdue_remind_guarantee</bpmn:incoming>
+      <bpmn:outgoing>flow_remind_guarantee_register_guarantee</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:sequenceFlow id="flow_applicant_accepted_generate_lease" sourceRef="applicant_accepted" targetRef="generate_lease"/>
+    <bpmn:sequenceFlow id="flow_generate_lease_lease_and_deposit" sourceRef="generate_lease" targetRef="lease_and_deposit"/>
+    <bpmn:sequenceFlow id="flow_lease_and_deposit_send_lease" sourceRef="lease_and_deposit" targetRef="send_lease"/>
+    <bpmn:sequenceFlow id="flow_send_lease_lease_signed_by_all" sourceRef="send_lease" targetRef="lease_signed_by_all"/>
+    <bpmn:sequenceFlow id="flow_lease_signed_by_all_lease_and_deposit_done" sourceRef="lease_signed_by_all" targetRef="lease_and_deposit_done"/>
+    <bpmn:sequenceFlow id="flow_lease_and_deposit_pay_deposit" sourceRef="lease_and_deposit" targetRef="pay_deposit"/>
+    <bpmn:sequenceFlow id="flow_pay_deposit_lease_and_deposit_done" sourceRef="pay_deposit" targetRef="lease_and_deposit_done"/>
+    <bpmn:sequenceFlow id="flow_lease_and_deposit_done_call_for_funds" sourceRef="lease_and_deposit_done" targetRef="call_for_funds"/>
+    <bpmn:sequenceFlow id="flow_call_for_funds_register_guarantee" sourceRef="call_for_funds" targetRef="register_guarantee"/>
+    <bpmn:sequenceFlow id="flow_register_guarantee_schedule_inspection" sourceRef="register_guarantee" targetRef="schedule_inspection"/>
+    <bpmn:sequenceFlow id="flow_schedule_inspection_inspect" sourceRef="schedule_inspection" targetRef="inspect"/>
+    <bpmn:sequenceFlow id="flow_inspect_hand_over_keys" sourceRef="inspect" targetRef="hand_over_keys"/>
+    <bpmn:sequenceFlow id="flow_hand_over_keys_moved_in" sourceRef="hand_over_keys" targetRef="moved_in"/>
+    <bpmn:sequenceFlow id="flow_guarantee_overdue_remind_guarantee" sourceRef="guarantee_overdue" targetRef="remind_guarantee"/>
+    <bpmn:sequenceFlow id="flow_remind_guarantee_register_guarantee" sourceRef="remind_guarantee" targetRef="register_guarantee"/>
+  </bpmn:process>
+</bpmn:definitions>
