@@ -9,8 +9,9 @@ use Wexample\PhpBpmn\Enum\TimerKind;
 /**
  * The example processes of the package, built in code; `examples/*.bpmn`
  * are written from them (ExamplesTest). Real cases, anonymized: a rental
- * agency — moving a tenant in, a repair, a visit —, an advisory firm; and an
- * editorial review.
+ * agency — moving a tenant in, a repair, a visit —, an advisory firm; an
+ * editorial review; and, to try a screen on a large one, a ministry of
+ * finance paying a spending.
  */
 final class ExampleProcesses
 {
@@ -25,6 +26,7 @@ final class ExampleProcesses
             'engagement-letter' => self::engagementLetter(),
             'article-review' => self::articleReview(),
             'visit-booking' => self::visitBooking(),
+            'public-expenditure' => self::publicExpenditure(),
         ];
     }
 
@@ -205,6 +207,106 @@ final class ExampleProcesses
             ->connectTo('offer_slots')
             ->property('remind_day_before', 'notification', 'visit.reminder_day_before')
             ->property('remind_hour_before', 'notification', 'visit.reminder_hour_before')
+            ->build();
+    }
+
+    /**
+     * A spending of a ministry of finance, from the need to the payment, as
+     * public accounting runs it: the credits checked and reserved — a
+     * transfer asked when they run short —, the financial controller's visa
+     * above a threshold — reminded after fifteen days —, a call for tenders
+     * while the legal commitment is recorded, the service certified —
+     * reminded after ten days —, the invoice awaited — claimed after sixty —
+     * and matched with the order, the payment ordered, then checked and paid
+     * by the public accountant, late-payment interest computed past the legal
+     * period. The large one of the examples, with seven lanes and loops back.
+     */
+    public static function publicExpenditure(): Definitions
+    {
+        return ProcessBuilder::create('public_expenditure', 'Public expenditure')
+            ->documentation('A ministry of finance carrying a spending from the need to the payment: credits checked and reserved, a credit transfer when they run short, the financial controller\'s visa above a threshold, a call for tenders, the service certified, the invoice matched with the order, the payment ordered, then checked and paid by the public accountant.')
+            ->lane('department', 'Requesting department', ['role' => 'ROLE_DEPARTMENT_OFFICER'])
+            ->lane('budget', 'Budget office', ['role' => 'ROLE_BUDGET_OFFICER'])
+            ->lane('controller', 'Financial controller', ['role' => 'ROLE_FINANCIAL_CONTROLLER'])
+            ->lane('procurement', 'Procurement', ['role' => 'ROLE_PROCUREMENT_OFFICER'])
+            ->lane('supplier', 'Supplier', ['role' => 'ROLE_SUPPLIER'])
+            ->lane('accountant', 'Public accountant', ['role' => 'ROLE_PUBLIC_ACCOUNTANT'])
+            ->lane('platform', 'Platform')
+            ->message('award_notified', 'Award notified')
+            ->message('invoice_received', 'Invoice received')
+            ->message('payment_sent', 'Payment sent')
+            ->startEvent('need_expressed', 'Spending need expressed', 'department')
+            ->userTask('draft_request', 'Draft the commitment request', 'department')
+            ->serviceTask('check_credits', 'Check the available credits', 'platform')
+            ->exclusiveGateway('credits', 'Credits available?', 'platform')
+            ->userTask('request_transfer', 'Request a credit transfer', 'budget', condition: "not variables['credits_available']")
+            ->exclusiveGateway('transfer', 'Transfer granted?', 'budget')
+            ->endEvent('abandoned', 'Request abandoned', 'budget', condition: "not variables['transfer_granted']")
+            ->from('transfer', default: true)
+            ->connectTo('check_credits')
+            ->from('credits', default: true)
+            ->serviceTask('reserve_credits', 'Reserve the credits', 'platform')
+            ->exclusiveGateway('threshold', 'Above the control threshold?', 'platform')
+            ->userTask('control', 'Examine the commitment', 'controller', condition: "variables['amount'] > 40000")
+            ->exclusiveGateway('visa', 'Visa granted?', 'controller')
+            ->userTask('revise_request', 'Revise the request', 'department', condition: "not variables['visa']")
+            ->serviceTask('release_credits', 'Release the reserved credits', 'platform')
+            ->connectTo('check_credits')
+            ->from('visa', default: true)
+            ->exclusiveGateway('committed', null, 'platform')
+            ->from('threshold', default: true)
+            ->connectTo('committed')
+            ->from('committed')
+            ->parallelGateway('launch', null, 'procurement')
+            ->serviceTask('record_commitment', 'Record the legal commitment', 'platform')
+            ->parallelGateway('launched', null, 'procurement')
+            ->from('launch')
+            ->userTask('publish_tender', 'Publish the call for tenders', 'procurement')
+            ->timerEvent('consultation', 'Thirty days of consultation', 'P30D', 'procurement')
+            ->userTask('select_offer', 'Select the winning offer', 'procurement')
+            ->sendTask('notify_award', 'Notify the award', 'platform', 'award_notified')
+            ->connectTo('launched')
+            ->from('launched')
+            ->manualTask('deliver', 'Deliver the goods or the service', 'supplier')
+            ->userTask('certify', 'Certify the service done', 'department')
+            ->exclusiveGateway('invoice_expected', null, 'platform')
+            ->eventBasedGateway('invoice_wait', 'Invoice?', 'platform')
+            ->messageCatchEvent('invoice_in', 'Invoice received', 'invoice_received', 'platform')
+            ->serviceTask('match_invoice', 'Match the invoice with the order and the certification', 'platform')
+            ->exclusiveGateway('matched', 'Invoice matched?', 'platform')
+            ->userTask('dispute', 'Dispute the invoice', 'accountant', condition: "not variables['matched']")
+            ->sendTask('ask_credit_note', 'Ask the supplier for a credit note', 'platform')
+            ->connectTo('invoice_expected')
+            ->from('matched', default: true)
+            ->userTask('order_payment', 'Order the payment', 'budget')
+            ->userTask('check_payment', 'Check the payment order', 'accountant')
+            ->exclusiveGateway('accepted', 'Payment order rejected?', 'accountant')
+            ->userTask('correct_order', 'Correct the payment order', 'budget', condition: "variables['rejected']")
+            ->connectTo('check_payment')
+            ->from('accepted', default: true)
+            ->serviceTask('pay', 'Send the bank transfer', 'platform')
+            ->messageThrowEvent('notify_paid', 'Tell the supplier', 'payment_sent', 'platform')
+            ->serviceTask('close_commitment', 'Close the commitment', 'platform')
+            ->endEvent('paid', 'Spending paid', 'accountant')
+            ->from('invoice_wait')
+            ->timerEvent('no_invoice', 'Sixty days without invoice', 'P60D', 'platform')
+            ->sendTask('claim_invoice', 'Claim the invoice', 'platform')
+            ->connectTo('invoice_expected')
+            ->boundaryTimer('control_late', 'Fifteen days without visa', 'control', 'P15D')
+            ->sendTask('remind_controller', 'Remind the controller', 'platform')
+            ->connectTo('control')
+            ->boundaryTimer('certification_late', 'Ten days without certification', 'certify', 'P10D')
+            ->sendTask('remind_department', 'Remind the department', 'platform')
+            ->connectTo('certify')
+            ->boundaryTimer('payment_period', 'Legal payment period exceeded', 'check_payment', 'P30D')
+            ->serviceTask('late_interest', 'Compute the late-payment interest', 'platform')
+            ->connectTo('check_payment')
+            ->property('notify_award', 'notification', 'expenditure.award_notified')
+            ->property('notify_paid', 'notification', 'expenditure.payment_sent')
+            ->property('claim_invoice', 'notification', 'expenditure.invoice_claim')
+            ->property('ask_credit_note', 'notification', 'expenditure.credit_note_request')
+            ->property('remind_controller', 'notification', 'expenditure.visa_reminder')
+            ->property('remind_department', 'notification', 'expenditure.certification_reminder')
             ->build();
     }
 }

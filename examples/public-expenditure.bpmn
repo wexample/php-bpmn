@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:wex="https://wexample.com/schema/bpmn" id="public_expenditure_definitions" targetNamespace="https://wexample.com/bpmn" exporter="wexample/php-bpmn">
+  <bpmn:message id="award_notified" name="Award notified"/>
+  <bpmn:message id="invoice_received" name="Invoice received"/>
+  <bpmn:message id="payment_sent" name="Payment sent"/>
+  <bpmn:process id="public_expenditure" name="Public expenditure" isExecutable="true">
+    <bpmn:documentation>A ministry of finance carrying a spending from the need to the payment: credits checked and reserved, a credit transfer when they run short, the financial controller's visa above a threshold, a call for tenders, the service certified, the invoice matched with the order, the payment ordered, then checked and paid by the public accountant.</bpmn:documentation>
+    <bpmn:laneSet id="public_expenditure_lanes">
+      <bpmn:lane id="department" name="Requesting department">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_DEPARTMENT_OFFICER"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>need_expressed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>draft_request</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>revise_request</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>certify</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="budget" name="Budget office">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_BUDGET_OFFICER"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>request_transfer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>transfer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>abandoned</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>order_payment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>correct_order</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="controller" name="Financial controller">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_FINANCIAL_CONTROLLER"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>control</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>visa</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="procurement" name="Procurement">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_PROCUREMENT_OFFICER"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>launch</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>launched</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>publish_tender</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>consultation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>select_offer</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="supplier" name="Supplier">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_SUPPLIER"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>deliver</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="accountant" name="Public accountant">
+        <bpmn:extensionElements>
+          <wex:property name="role" value="ROLE_PUBLIC_ACCOUNTANT"/>
+        </bpmn:extensionElements>
+        <bpmn:flowNodeRef>dispute</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>check_payment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>accepted</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>paid</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="platform" name="Platform">
+        <bpmn:flowNodeRef>check_credits</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>credits</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>reserve_credits</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>threshold</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>release_credits</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>committed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>record_commitment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>notify_award</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>invoice_expected</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>invoice_wait</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>invoice_in</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>match_invoice</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>matched</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ask_credit_note</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>pay</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>notify_paid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>close_commitment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>no_invoice</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>claim_invoice</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>remind_controller</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>remind_department</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>late_interest</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="need_expressed" name="Spending need expressed">
+      <bpmn:outgoing>flow_need_expressed_draft_request</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="draft_request" name="Draft the commitment request">
+      <bpmn:incoming>flow_need_expressed_draft_request</bpmn:incoming>
+      <bpmn:outgoing>flow_draft_request_check_credits</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="check_credits" name="Check the available credits">
+      <bpmn:incoming>flow_draft_request_check_credits</bpmn:incoming>
+      <bpmn:incoming>flow_transfer_check_credits</bpmn:incoming>
+      <bpmn:incoming>flow_release_credits_check_credits</bpmn:incoming>
+      <bpmn:outgoing>flow_check_credits_credits</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="credits" name="Credits available?" default="flow_credits_reserve_credits">
+      <bpmn:incoming>flow_check_credits_credits</bpmn:incoming>
+      <bpmn:outgoing>flow_credits_request_transfer</bpmn:outgoing>
+      <bpmn:outgoing>flow_credits_reserve_credits</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="request_transfer" name="Request a credit transfer">
+      <bpmn:incoming>flow_credits_request_transfer</bpmn:incoming>
+      <bpmn:outgoing>flow_request_transfer_transfer</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="transfer" name="Transfer granted?" default="flow_transfer_check_credits">
+      <bpmn:incoming>flow_request_transfer_transfer</bpmn:incoming>
+      <bpmn:outgoing>flow_transfer_abandoned</bpmn:outgoing>
+      <bpmn:outgoing>flow_transfer_check_credits</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="abandoned" name="Request abandoned">
+      <bpmn:incoming>flow_transfer_abandoned</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="reserve_credits" name="Reserve the credits">
+      <bpmn:incoming>flow_credits_reserve_credits</bpmn:incoming>
+      <bpmn:outgoing>flow_reserve_credits_threshold</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="threshold" name="Above the control threshold?" default="flow_threshold_committed">
+      <bpmn:incoming>flow_reserve_credits_threshold</bpmn:incoming>
+      <bpmn:outgoing>flow_threshold_control</bpmn:outgoing>
+      <bpmn:outgoing>flow_threshold_committed</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="control" name="Examine the commitment">
+      <bpmn:incoming>flow_threshold_control</bpmn:incoming>
+      <bpmn:incoming>flow_remind_controller_control</bpmn:incoming>
+      <bpmn:outgoing>flow_control_visa</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="visa" name="Visa granted?" default="flow_visa_committed">
+      <bpmn:incoming>flow_control_visa</bpmn:incoming>
+      <bpmn:outgoing>flow_visa_revise_request</bpmn:outgoing>
+      <bpmn:outgoing>flow_visa_committed</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="revise_request" name="Revise the request">
+      <bpmn:incoming>flow_visa_revise_request</bpmn:incoming>
+      <bpmn:outgoing>flow_revise_request_release_credits</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="release_credits" name="Release the reserved credits">
+      <bpmn:incoming>flow_revise_request_release_credits</bpmn:incoming>
+      <bpmn:outgoing>flow_release_credits_check_credits</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="committed">
+      <bpmn:incoming>flow_visa_committed</bpmn:incoming>
+      <bpmn:incoming>flow_threshold_committed</bpmn:incoming>
+      <bpmn:outgoing>flow_committed_launch</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:parallelGateway id="launch">
+      <bpmn:incoming>flow_committed_launch</bpmn:incoming>
+      <bpmn:outgoing>flow_launch_record_commitment</bpmn:outgoing>
+      <bpmn:outgoing>flow_launch_publish_tender</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="record_commitment" name="Record the legal commitment">
+      <bpmn:incoming>flow_launch_record_commitment</bpmn:incoming>
+      <bpmn:outgoing>flow_record_commitment_launched</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="launched">
+      <bpmn:incoming>flow_record_commitment_launched</bpmn:incoming>
+      <bpmn:incoming>flow_notify_award_launched</bpmn:incoming>
+      <bpmn:outgoing>flow_launched_deliver</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:userTask id="publish_tender" name="Publish the call for tenders">
+      <bpmn:incoming>flow_launch_publish_tender</bpmn:incoming>
+      <bpmn:outgoing>flow_publish_tender_consultation</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:intermediateCatchEvent id="consultation" name="Thirty days of consultation">
+      <bpmn:incoming>flow_publish_tender_consultation</bpmn:incoming>
+      <bpmn:outgoing>flow_consultation_select_offer</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P30D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="select_offer" name="Select the winning offer">
+      <bpmn:incoming>flow_consultation_select_offer</bpmn:incoming>
+      <bpmn:outgoing>flow_select_offer_notify_award</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="notify_award" name="Notify the award" messageRef="award_notified">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="expenditure.award_notified"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_select_offer_notify_award</bpmn:incoming>
+      <bpmn:outgoing>flow_notify_award_launched</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:manualTask id="deliver" name="Deliver the goods or the service">
+      <bpmn:incoming>flow_launched_deliver</bpmn:incoming>
+      <bpmn:outgoing>flow_deliver_certify</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:userTask id="certify" name="Certify the service done">
+      <bpmn:incoming>flow_deliver_certify</bpmn:incoming>
+      <bpmn:incoming>flow_remind_department_certify</bpmn:incoming>
+      <bpmn:outgoing>flow_certify_invoice_expected</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="invoice_expected">
+      <bpmn:incoming>flow_certify_invoice_expected</bpmn:incoming>
+      <bpmn:incoming>flow_ask_credit_note_invoice_expected</bpmn:incoming>
+      <bpmn:incoming>flow_claim_invoice_invoice_expected</bpmn:incoming>
+      <bpmn:outgoing>flow_invoice_expected_invoice_wait</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:eventBasedGateway id="invoice_wait" name="Invoice?">
+      <bpmn:incoming>flow_invoice_expected_invoice_wait</bpmn:incoming>
+      <bpmn:outgoing>flow_invoice_wait_invoice_in</bpmn:outgoing>
+      <bpmn:outgoing>flow_invoice_wait_no_invoice</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="invoice_in" name="Invoice received">
+      <bpmn:incoming>flow_invoice_wait_invoice_in</bpmn:incoming>
+      <bpmn:outgoing>flow_invoice_in_match_invoice</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="invoice_received"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="match_invoice" name="Match the invoice with the order and the certification">
+      <bpmn:incoming>flow_invoice_in_match_invoice</bpmn:incoming>
+      <bpmn:outgoing>flow_match_invoice_matched</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="matched" name="Invoice matched?" default="flow_matched_order_payment">
+      <bpmn:incoming>flow_match_invoice_matched</bpmn:incoming>
+      <bpmn:outgoing>flow_matched_dispute</bpmn:outgoing>
+      <bpmn:outgoing>flow_matched_order_payment</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="dispute" name="Dispute the invoice">
+      <bpmn:incoming>flow_matched_dispute</bpmn:incoming>
+      <bpmn:outgoing>flow_dispute_ask_credit_note</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="ask_credit_note" name="Ask the supplier for a credit note">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="expenditure.credit_note_request"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_dispute_ask_credit_note</bpmn:incoming>
+      <bpmn:outgoing>flow_ask_credit_note_invoice_expected</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:userTask id="order_payment" name="Order the payment">
+      <bpmn:incoming>flow_matched_order_payment</bpmn:incoming>
+      <bpmn:outgoing>flow_order_payment_check_payment</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="check_payment" name="Check the payment order">
+      <bpmn:incoming>flow_order_payment_check_payment</bpmn:incoming>
+      <bpmn:incoming>flow_correct_order_check_payment</bpmn:incoming>
+      <bpmn:incoming>flow_late_interest_check_payment</bpmn:incoming>
+      <bpmn:outgoing>flow_check_payment_accepted</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="accepted" name="Payment order rejected?" default="flow_accepted_pay">
+      <bpmn:incoming>flow_check_payment_accepted</bpmn:incoming>
+      <bpmn:outgoing>flow_accepted_correct_order</bpmn:outgoing>
+      <bpmn:outgoing>flow_accepted_pay</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="correct_order" name="Correct the payment order">
+      <bpmn:incoming>flow_accepted_correct_order</bpmn:incoming>
+      <bpmn:outgoing>flow_correct_order_check_payment</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="pay" name="Send the bank transfer">
+      <bpmn:incoming>flow_accepted_pay</bpmn:incoming>
+      <bpmn:outgoing>flow_pay_notify_paid</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateThrowEvent id="notify_paid" name="Tell the supplier">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="expenditure.payment_sent"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_pay_notify_paid</bpmn:incoming>
+      <bpmn:outgoing>flow_notify_paid_close_commitment</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="payment_sent"/>
+    </bpmn:intermediateThrowEvent>
+    <bpmn:serviceTask id="close_commitment" name="Close the commitment">
+      <bpmn:incoming>flow_notify_paid_close_commitment</bpmn:incoming>
+      <bpmn:outgoing>flow_close_commitment_paid</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="paid" name="Spending paid">
+      <bpmn:incoming>flow_close_commitment_paid</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="no_invoice" name="Sixty days without invoice">
+      <bpmn:incoming>flow_invoice_wait_no_invoice</bpmn:incoming>
+      <bpmn:outgoing>flow_no_invoice_claim_invoice</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P60D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sendTask id="claim_invoice" name="Claim the invoice">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="expenditure.invoice_claim"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_no_invoice_claim_invoice</bpmn:incoming>
+      <bpmn:outgoing>flow_claim_invoice_invoice_expected</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:boundaryEvent id="control_late" name="Fifteen days without visa" attachedToRef="control">
+      <bpmn:outgoing>flow_control_late_remind_controller</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P15D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sendTask id="remind_controller" name="Remind the controller">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="expenditure.visa_reminder"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_control_late_remind_controller</bpmn:incoming>
+      <bpmn:outgoing>flow_remind_controller_control</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:boundaryEvent id="certification_late" name="Ten days without certification" attachedToRef="certify">
+      <bpmn:outgoing>flow_certification_late_remind_department</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P10D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sendTask id="remind_department" name="Remind the department">
+      <bpmn:extensionElements>
+        <wex:property name="notification" value="expenditure.certification_reminder"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_certification_late_remind_department</bpmn:incoming>
+      <bpmn:outgoing>flow_remind_department_certify</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:boundaryEvent id="payment_period" name="Legal payment period exceeded" attachedToRef="check_payment">
+      <bpmn:outgoing>flow_payment_period_late_interest</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P30D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="late_interest" name="Compute the late-payment interest">
+      <bpmn:incoming>flow_payment_period_late_interest</bpmn:incoming>
+      <bpmn:outgoing>flow_late_interest_check_payment</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="flow_need_expressed_draft_request" sourceRef="need_expressed" targetRef="draft_request"/>
+    <bpmn:sequenceFlow id="flow_draft_request_check_credits" sourceRef="draft_request" targetRef="check_credits"/>
+    <bpmn:sequenceFlow id="flow_check_credits_credits" sourceRef="check_credits" targetRef="credits"/>
+    <bpmn:sequenceFlow id="flow_credits_request_transfer" sourceRef="credits" targetRef="request_transfer">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">not variables['credits_available']</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_request_transfer_transfer" sourceRef="request_transfer" targetRef="transfer"/>
+    <bpmn:sequenceFlow id="flow_transfer_abandoned" sourceRef="transfer" targetRef="abandoned">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">not variables['transfer_granted']</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_transfer_check_credits" sourceRef="transfer" targetRef="check_credits"/>
+    <bpmn:sequenceFlow id="flow_credits_reserve_credits" sourceRef="credits" targetRef="reserve_credits"/>
+    <bpmn:sequenceFlow id="flow_reserve_credits_threshold" sourceRef="reserve_credits" targetRef="threshold"/>
+    <bpmn:sequenceFlow id="flow_threshold_control" sourceRef="threshold" targetRef="control">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">variables['amount'] &gt; 40000</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_control_visa" sourceRef="control" targetRef="visa"/>
+    <bpmn:sequenceFlow id="flow_visa_revise_request" sourceRef="visa" targetRef="revise_request">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">not variables['visa']</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_revise_request_release_credits" sourceRef="revise_request" targetRef="release_credits"/>
+    <bpmn:sequenceFlow id="flow_release_credits_check_credits" sourceRef="release_credits" targetRef="check_credits"/>
+    <bpmn:sequenceFlow id="flow_visa_committed" sourceRef="visa" targetRef="committed"/>
+    <bpmn:sequenceFlow id="flow_threshold_committed" sourceRef="threshold" targetRef="committed"/>
+    <bpmn:sequenceFlow id="flow_committed_launch" sourceRef="committed" targetRef="launch"/>
+    <bpmn:sequenceFlow id="flow_launch_record_commitment" sourceRef="launch" targetRef="record_commitment"/>
+    <bpmn:sequenceFlow id="flow_record_commitment_launched" sourceRef="record_commitment" targetRef="launched"/>
+    <bpmn:sequenceFlow id="flow_launch_publish_tender" sourceRef="launch" targetRef="publish_tender"/>
+    <bpmn:sequenceFlow id="flow_publish_tender_consultation" sourceRef="publish_tender" targetRef="consultation"/>
+    <bpmn:sequenceFlow id="flow_consultation_select_offer" sourceRef="consultation" targetRef="select_offer"/>
+    <bpmn:sequenceFlow id="flow_select_offer_notify_award" sourceRef="select_offer" targetRef="notify_award"/>
+    <bpmn:sequenceFlow id="flow_notify_award_launched" sourceRef="notify_award" targetRef="launched"/>
+    <bpmn:sequenceFlow id="flow_launched_deliver" sourceRef="launched" targetRef="deliver"/>
+    <bpmn:sequenceFlow id="flow_deliver_certify" sourceRef="deliver" targetRef="certify"/>
+    <bpmn:sequenceFlow id="flow_certify_invoice_expected" sourceRef="certify" targetRef="invoice_expected"/>
+    <bpmn:sequenceFlow id="flow_invoice_expected_invoice_wait" sourceRef="invoice_expected" targetRef="invoice_wait"/>
+    <bpmn:sequenceFlow id="flow_invoice_wait_invoice_in" sourceRef="invoice_wait" targetRef="invoice_in"/>
+    <bpmn:sequenceFlow id="flow_invoice_in_match_invoice" sourceRef="invoice_in" targetRef="match_invoice"/>
+    <bpmn:sequenceFlow id="flow_match_invoice_matched" sourceRef="match_invoice" targetRef="matched"/>
+    <bpmn:sequenceFlow id="flow_matched_dispute" sourceRef="matched" targetRef="dispute">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">not variables['matched']</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_dispute_ask_credit_note" sourceRef="dispute" targetRef="ask_credit_note"/>
+    <bpmn:sequenceFlow id="flow_ask_credit_note_invoice_expected" sourceRef="ask_credit_note" targetRef="invoice_expected"/>
+    <bpmn:sequenceFlow id="flow_matched_order_payment" sourceRef="matched" targetRef="order_payment"/>
+    <bpmn:sequenceFlow id="flow_order_payment_check_payment" sourceRef="order_payment" targetRef="check_payment"/>
+    <bpmn:sequenceFlow id="flow_check_payment_accepted" sourceRef="check_payment" targetRef="accepted"/>
+    <bpmn:sequenceFlow id="flow_accepted_correct_order" sourceRef="accepted" targetRef="correct_order">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">variables['rejected']</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_correct_order_check_payment" sourceRef="correct_order" targetRef="check_payment"/>
+    <bpmn:sequenceFlow id="flow_accepted_pay" sourceRef="accepted" targetRef="pay"/>
+    <bpmn:sequenceFlow id="flow_pay_notify_paid" sourceRef="pay" targetRef="notify_paid"/>
+    <bpmn:sequenceFlow id="flow_notify_paid_close_commitment" sourceRef="notify_paid" targetRef="close_commitment"/>
+    <bpmn:sequenceFlow id="flow_close_commitment_paid" sourceRef="close_commitment" targetRef="paid"/>
+    <bpmn:sequenceFlow id="flow_invoice_wait_no_invoice" sourceRef="invoice_wait" targetRef="no_invoice"/>
+    <bpmn:sequenceFlow id="flow_no_invoice_claim_invoice" sourceRef="no_invoice" targetRef="claim_invoice"/>
+    <bpmn:sequenceFlow id="flow_claim_invoice_invoice_expected" sourceRef="claim_invoice" targetRef="invoice_expected"/>
+    <bpmn:sequenceFlow id="flow_control_late_remind_controller" sourceRef="control_late" targetRef="remind_controller"/>
+    <bpmn:sequenceFlow id="flow_remind_controller_control" sourceRef="remind_controller" targetRef="control"/>
+    <bpmn:sequenceFlow id="flow_certification_late_remind_department" sourceRef="certification_late" targetRef="remind_department"/>
+    <bpmn:sequenceFlow id="flow_remind_department_certify" sourceRef="remind_department" targetRef="certify"/>
+    <bpmn:sequenceFlow id="flow_payment_period_late_interest" sourceRef="payment_period" targetRef="late_interest"/>
+    <bpmn:sequenceFlow id="flow_late_interest_check_payment" sourceRef="late_interest" targetRef="check_payment"/>
+  </bpmn:process>
+</bpmn:definitions>
