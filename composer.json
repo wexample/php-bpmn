@@ -1,7 +1,7 @@
 {
   "name": "wexample/php-bpmn",
   "description": "BPMN 2.0 in plain PHP: a typed model of processes, read from and written to XML with their diagram, built in code, validated, and walked path by path",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "type": "library",
   "license": "MIT",
   "autoload": {

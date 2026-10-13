@@ -1,0 +1,128 @@
+## Reading and writing
+
+```php
+$definitions = (new BpmnXmlReader())->readFile('order.bpmn');
+$process = $definitions->getProcess('Process_order');
+
+file_put_contents('order.bpmn', (new BpmnXmlWriter())->write($definitions));
+```
+
+- The model: `Definitions` holds `Process`es, `Collaboration`s (pools and message flows), the messages, signals and errors events refer to (`RootReference`), and how it is drawn (`Diagram`). A `Process` holds its nodes and flows (`getFlow()`, a `FlowContainer`) and its `Lane`s, which may nest.
+- Nodes: `Task` (typed: user, manual, service, send, receive, script, business rule), `CallActivity`, `SubProcess` (a flow of its own), `Event` (start, end, intermediate catch or throw, boundary; its `EventDefinition`s — message, timer, signal, error, conditional, terminate…), `Gateway` (exclusive, parallel, inclusive, event-based, complex; its default flow). `SequenceFlow` carries its condition.
+- The diagram (BPMNDI) is kept as it was read and written back: a model drawn elsewhere keeps its layout.
+- What is read but not modelled — a data object, an annotation — is listed by `Definitions::getUnmodelled()`, reported by the validator, and dropped when written back.
+- Our own properties, where BPMN has no word: `<bpmn:extensionElements><wex:property name="role" value="ROLE_AGENT"/></bpmn:extensionElements>` (namespace `https://wexample.com/schema/bpmn`), read and written as `getProperty()` / `setProperty()` on any element. symfony-bpmn reads `role` and `grant` on lanes, `notification` on what sends a message.
+
+## Writing a process by hand
+
+A BPMN file does not need its diagram: lanes, nodes and flows are enough to read, check, walk and run it — or to drive symfony-testing's scenarios. The smallest useful skeleton:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="note_review_definitions" targetNamespace="https://example.com/bpmn">
+  <bpmn:process id="note_review" name="Note review" isExecutable="false">
+    <bpmn:laneSet id="note_review_lanes">
+      <bpmn:lane id="writer" name="Writer">
+        <bpmn:flowNodeRef>start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>write</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="reviewer" name="Reviewer">
+        <bpmn:flowNodeRef>review</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>verdict</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>approved</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>rejected</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="start" name="A member has something to say"/>
+    <bpmn:userTask id="write" name="Write a note"/>
+    <bpmn:userTask id="review" name="Review the note"/>
+    <bpmn:exclusiveGateway id="verdict" name="Approved?" default="flow_rejected"/>
+    <bpmn:endEvent id="approved" name="Approved"/>
+    <bpmn:endEvent id="rejected" name="Rejected"/>
+    <bpmn:sequenceFlow id="flow_start" sourceRef="start" targetRef="write"/>
+    <bpmn:sequenceFlow id="flow_written" sourceRef="write" targetRef="review"/>
+    <bpmn:sequenceFlow id="flow_reviewed" sourceRef="review" targetRef="verdict"/>
+    <bpmn:sequenceFlow id="flow_approved" sourceRef="verdict" targetRef="approved">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">variables['approved']</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_rejected" sourceRef="verdict" targetRef="rejected"/>
+  </bpmn:process>
+</bpmn:definitions>
+```
+
+- Each node belongs to one lane through a `flowNodeRef`; a node's `incoming` / `outgoing` are optional, the flows say it.
+- Ids are what other files name: lanes, tasks and flows are referred to by them — keep them readable and stable.
+- An exclusive gateway names its `default` flow; the other flows carry a condition.
+- `userTask` (or `task`, `manualTask`) is done by a person; `serviceTask`, `sendTask`, `scriptTask` by the application.
+- The file opens in bpmn.io, Camunda Modeler, Signavio: they add the diagram, which is kept when php-bpmn writes the file again.
+
+`BpmnValidator` says what is wrong; `PathFinder` lists the paths it allows.
+
+## Building in code
+
+```php
+$definitions = ProcessBuilder::create('maintenance_request', 'Maintenance request')
+    ->lane('agent', 'Agent', ['role' => 'ROLE_AGENT'])
+    ->lane('landlord', 'Landlord', ['role' => 'ROLE_LANDLORD'])
+    ->startEvent('reported', 'Repair reported', 'agent')
+    ->userTask('get_quote', 'Get a quote', 'agent')
+    ->exclusiveGateway('amount', 'Quote above 200 €?', 'agent')
+    ->userTask('landlord_decides', 'Approve the quote', 'landlord', condition: "variables['quote'] > 200")
+    ->endEvent('decided', null, 'landlord')
+    ->from('amount', default: true)
+    ->userTask('agent_decides', 'Decide on the quote', 'agent')
+    ->connectTo('decided')
+    ->boundaryTimer('silent', 'Three days', 'landlord_decides', 'P3D')
+    ->sendTask('remind', 'Remind the landlord', 'agent')
+    ->connectTo('landlord_decides')
+    ->build();
+```
+
+Each node follows the previous one; `from()` goes back to a node to start another way out of it — under a condition, or as its gateway's default —; `connectTo()` joins a node built already (a loop, a merge); `connect()` draws any flow. A boundary event is built from, not into.
+
+## Checking
+
+```php
+$report = (new BpmnValidator())->validate($definitions);
+$report->isValid();      // no error
+$report->getErrors();    // ValidationIssue: severity, code, element, message
+$report->getWarnings();
+```
+
+Errors where the model is not sound: no start, a flow to nothing, a node no start reaches, a node nothing leaves, a choice with a way out that has no condition and is not the default, a default that does not leave its gateway, an event-based gateway leading to something else than an event waited for, a boundary event attached to nothing, a timer that is no ISO 8601, a message or signal not declared, a node in two lanes, a message flow inside one pool.
+
+Warnings where it is BPMN beyond what symfony-bpmn runs — inclusive and complex gateways, non-interrupting boundary events, error, escalation, compensation events —, or likely not what was meant: a condition straight out of an activity, a node no lane holds in a process that has lanes, a gateway that both joins and splits.
+
+## Walking the paths
+
+```php
+foreach ((new PathFinder(maxVisits: 1))->find($process) as $path) {
+    $path->describe();       // the choices made: "amount → variables['quote'] > 200"
+    $path->getSteps();       // PathStep: node, element, name, lane, flow taken and its condition
+    $path->getLanes();       // who takes part
+    $path->getEnds();
+    $path->isComplete();     // false where a loop was cut
+}
+```
+
+Each way out of an exclusive, inclusive or event-based gateway is a path, each boundary event of an activity too; a parallel split is walked whole in one path, joined before going on; a loop is gone round `maxVisits` times per node, then the path stops. A path is a story told lane by lane: what a multi-actor test plays.
+
+`find()` gives every combination: on a large process with loops, too many to read — the ministry example has more than 200. `cover()` gives a few paths that together take every flow, each loop gone round once, each path complete:
+
+```php
+foreach ((new PathFinder())->cover($process) as $path) {
+    $path->describe();   // "main: paid", then what each one chose first: "matched → default ↺"
+}
+```
+
+Each is walked choosing, at a fork, a way not taken yet, else the way towards the nearest flow not taken yet, else the shortest way to an end; once it has gone round a loop, it heads for an end. Paths are drawn until a new one takes nothing new. `↺` marks a choice leading back. The first is labelled by its ends, the others by the choices they made first. This is what to show a person, and what a test should play.
+
+## Timers
+
+`Iso8601Helper` reads what a timer says — a duration `P3D`, a date `2026-12-31T09:00:00Z`, a cycle `R3/PT1H` — and `getFireDate()` when it fires. A timer may also be an expression, `${variables['visit_at']}` (`isExpression()`): the engine running the process evaluates it, the validator lets it be.
+
+## Examples
+
+`examples/*.bpmn`, written from `tests/Fixtures/ExampleProcesses.php` — real cases, anonymized —: a tenant moving in (lease and deposit in parallel, guarantee reminded every five days, inspection), a maintenance request (a quote above 200 € approved by the landlord, reminded after three days), an engagement letter of an advisory firm (signatures in order, renewal after one or three years by risk), an article review, a visit booking (a silent prospect relaunched once, reminders the day and the hour before the visit, at times computed from the slot). Rewrite them with `BPMN_WRITE_EXAMPLES=1 vendor/bin/phpunit`.

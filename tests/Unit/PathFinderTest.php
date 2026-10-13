@@ -149,4 +149,3 @@ class PathFinderTest extends TestCase
         $this->assertSame(['main: published', 'review → review_late ↺', 'verdict → default ↺'], $labels);
     }
 }
-
